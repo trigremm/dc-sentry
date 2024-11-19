@@ -1,0 +1,114 @@
+services:
+  sentry_redis:
+    container_name: sentry_redis
+    image: redis:7-alpine
+    platform: linux/amd64
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  sentry_postgres:
+    container_name: sentry_postgres
+    image: postgres:17-alpine
+    platform: linux/amd64
+    environment:
+      POSTGRES_USER: sentry
+      POSTGRES_PASSWORD: sentry
+      POSTGRES_DB: sentry
+    volumes:
+      - sentry_postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sentry"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  sentry:
+    container_name: sentry
+    image: getsentry/sentry:855e9ab8
+    platform: linux/amd64
+    depends_on:
+      sentry_redis:
+        condition: service_healthy
+      sentry_postgres:
+        condition: service_healthy
+    environment:
+      SENTRY_SECRET_KEY: "your_secret_keyyour_secret_keyyour_secret_key"
+      SENTRY_DB_USER: sentry
+      SENTRY_DB_PASSWORD: sentry
+      SENTRY_DB_NAME: sentry
+      SENTRY_REDIS_HOST: sentry_redis
+      SENTRY_REDIS_PORT: 6379
+      SENTRY_POSTGRES_HOST: sentry_postgres
+      SENTRY_POSTGRES_PORT: 5432
+      SENTRY_POSTGRES_USER: sentry
+      SENTRY_POSTGRES_PASSWORD: sentry
+      SENTRY_POSTGRES_DB: sentry
+      # Дополнительные настройки для работы
+      SENTRY_SINGLE_ORGANIZATION: true
+      SENTRY_BEACON: false
+      SENTRY_EVENT_RETENTION_DAYS: 90
+    ports:
+      - "9000:9000"
+    volumes:
+      - sentry_data:/var/lib/sentry/files
+
+  # # Воркер для обработки фоновых задач
+  # sentry_worker:
+  #   container_name: sentry_worker
+  #   image: getsentry/sentry:855e9ab8
+  #   platform: linux/amd64
+  #   depends_on:
+  #     - sentry
+  #     - sentry_redis
+  #     - sentry_postgres
+  #   command: run worker
+  #   environment:
+  #     SENTRY_SECRET_KEY: "your_secret_keyyour_secret_keyyour_secret_key"
+  #     SENTRY_DB_USER: sentry
+  #     SENTRY_DB_PASSWORD: sentry
+  #     SENTRY_DB_NAME: sentry
+  #     SENTRY_REDIS_HOST: sentry_redis
+  #     SENTRY_REDIS_PORT: 6379
+  #     SENTRY_POSTGRES_HOST: sentry_postgres
+  #     SENTRY_POSTGRES_PORT: 5432
+  #     SENTRY_POSTGRES_USER: sentry
+  #     SENTRY_POSTGRES_PASSWORD: sentry
+  #     SENTRY_POSTGRES_DB: sentry
+  #   volumes:
+  #     - sentry_data:/var/lib/sentry/files
+
+  # # Cron для периодических задач
+  # sentry_cron:
+  #   container_name: sentry_cron
+  #   image: getsentry/sentry:855e9ab8
+  #   platform: linux/amd64
+  #   depends_on:
+  #     - sentry
+  #     - sentry_redis
+  #     - sentry_postgres
+  #   command: run cron
+  #   environment:
+  #     SENTRY_SECRET_KEY: "your_secret_keyyour_secret_keyyour_secret_key"
+  #     SENTRY_DB_USER: sentry
+  #     SENTRY_DB_PASSWORD: sentry
+  #     SENTRY_DB_NAME: sentry
+  #     SENTRY_REDIS_HOST: sentry_redis
+  #     SENTRY_REDIS_PORT: 6379
+  #     SENTRY_POSTGRES_HOST: sentry_postgres
+  #     SENTRY_POSTGRES_PORT: 5432
+  #     SENTRY_POSTGRES_USER: sentry
+  #     SENTRY_POSTGRES_PASSWORD: sentry
+  #     SENTRY_POSTGRES_DB: sentry
+  #   volumes:
+  #     - sentry_data:/var/lib/sentry/files
+
+volumes:
+  sentry_postgres_data:
+  sentry_data:
